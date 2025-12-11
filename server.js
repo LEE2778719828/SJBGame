@@ -12,12 +12,25 @@ let CONFIG;
 try {
     CONFIG = JSON.parse(fs.readFileSync('config.json'));
 } catch (e) {
+    // 默认配置兜底 (注意 ROUND_TIME_SEC 默认改为数组以防报错)
     CONFIG = { 
-        MAX_HP: 10, ROUND_TIME_SEC: 5.0, SHOW_TIME_SEC: 2.0,
+        MAX_HP: 10, ROUND_TIME_SEC: [5.0], SHOW_TIME_SEC: 2.0,
         CRIT_WARMUP_SEC: 1.0, CRIT_TIME_SEC: 4.0, CRIT_SETTLE_SEC: 3.0,
         DMG_AFK: 1.5, DMG_HIT: 1.0, MAX_AFK_ROUNDS: 2,
         CRIT_TRIGGER_N: 1, CRIT_DMG_PER_TAP: 0.2
     };
+}
+
+// --- 辅助函数：根据轮数获取时间 ---
+function getRoundDuration(roundIndex) {
+    const rts = CONFIG.ROUND_TIME_SEC;
+    // 如果配置不是数组，直接返回数值（兼容旧配置）
+    if (!Array.isArray(rts)) return rts;
+    
+    // 如果轮数超过数组长度，使用最后一个元素
+    // 例如数组长度3 (index 0,1,2)，roundIndex为5，则使用 index 2
+    const idx = Math.min(roundIndex, rts.length - 1);
+    return rts[idx];
 }
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -36,6 +49,9 @@ function tryMatch(socket) {
         socket.join(roomId);
         opponent.join(roomId);
 
+        // 初始第一轮时间
+        const firstRoundTime = getRoundDuration(0);
+
         const room = {
             id: roomId,
             players: [opponent.id, socket.id],
@@ -44,11 +60,16 @@ function tryMatch(socket) {
             moves: { [opponent.id]: null, [socket.id]: null },
             afkCount: { [opponent.id]: 0, [socket.id]: 0 },
             streak: { [opponent.id]: 0, [socket.id]: 0 },
+            
+            // 新增：记录当前是第几轮 (0-based index)
+            roundCount: 0,
+            
             critAttacker: null,
             critVictim: null,
             critTotalDmg: 0,
             state: 'playing', 
-            nextPhaseTime: Date.now() + (CONFIG.ROUND_TIME_SEC * 1000) + 1000 
+            // 初始倒计时 = 动态时间 + 1秒加载缓冲
+            nextPhaseTime: Date.now() + (firstRoundTime * 1000) + 1000 
         };
         rooms[roomId] = room;
 
@@ -87,11 +108,9 @@ io.on('connection', (socket) => {
         room.moves[socket.id] = move;
         socket.emit('moveConfirmed', move);
 
-        // --- 修复逻辑 1: 秒结算 ---
+        // 秒结算逻辑
         const otherId = room.players.find(id => id !== socket.id);
         if (room.moves[otherId]) {
-            // 双方都操作了，无需等待倒计时，立即结算
-            // 将 nextPhaseTime 设为当前时间，下一帧循环会立即触发 resolveRound
             room.nextPhaseTime = Date.now();
         }
     });
@@ -149,9 +168,7 @@ function startGameLoop(roomId) {
                     });
                     break;
                 case 'crit_active':
-                    // 暴击阶段结束，进入结算展示阶段
                     room.state = 'crit_settle';
-                    // 这个时间必须足够长，且在这段时间内服务器 NOT sending newRound
                     room.nextPhaseTime = now + (CONFIG.CRIT_SETTLE_SEC * 1000);
                     io.to(roomId).emit('critResult', {
                         totalDmg: room.critTotalDmg,
@@ -159,19 +176,23 @@ function startGameLoop(roomId) {
                     });
                     break;
                 case 'crit_settle':
-                    // 只有等 settlement 时间完全跑完，才开始新一轮
                     startNewRound(room);
                     break;
             }
         }
-    }, 50); // 50ms 刷新率保证秒结算响应快
+    }, 50); 
 }
 
 function startNewRound(room) {
     room.state = 'playing';
-    room.nextPhaseTime = Date.now() + (CONFIG.ROUND_TIME_SEC * 1000);
+    
+    // --- 逻辑修改：回合数 +1，并获取对应的时间 ---
+    room.roundCount++; 
+    const nextDuration = getRoundDuration(room.roundCount);
+    
+    room.nextPhaseTime = Date.now() + (nextDuration * 1000);
     room.moves = { [room.players[0]]: null, [room.players[1]]: null };
-    // 发送新回合指令，客户端收到后必须立即解锁 UI
+    
     io.to(room.id).emit('newRound', { nextPhaseTime: room.nextPhaseTime });
 }
 

@@ -1,0 +1,35 @@
+{
+  "UI_TITLE": { "val": "石头剪刀布", "note": "登录界面主标题" },
+  "UI_SUBTITLE": { "val": "技能极速版", "note": "登录界面副标题" },
+  "UI_INPUT_PLACEHOLDER": { "val": "输入名字", "note": "名字输入框提示" },
+
+  "BTN_MODE_CLASSIC": { "val": "经典模式", "note": "经典入口按钮" },
+  "BTN_MODE_SKILL": { "val": "技能模式", "note": "技能入口按钮" },
+  "MSG_DEV_IP": { "val": "功能开发中，敬请期待！", "note": "未开发提示" },
+
+  "BTN_START": { "val": "开始游戏", "note": "开始游戏按钮" },
+  "BTN_AGAIN": { "val": "再来一局", "note": "结算界面重开按钮" },
+  "BTN_SMASH": { "val": "打TA!", "note": "暴击按钮文字" },
+  "MSG_DEFEND": { "val": "嘤嘤嘤", "note": "防御状态提示文字" },
+  
+  "STATUS_WAITING": { "val": "连接中", "note": "等待中状态" },
+  "STATUS_READY": { "val": "准备中", "note": "游戏准备中" },
+  "STATUS_CHOOSE": { "val": "出手！", "note": "选择出招阶段" },
+  "STATUS_DOUBLE_HIT": { "val": "两败俱伤喵", "note": "双方同时受伤" },
+  "STATUS_OUCH": { "val": "被揍了!", "note": "我方受伤" },
+  "STATUS_NICE_HIT": { "val": "NICE HIT!", "note": "敌方受伤" },
+  "STATUS_DRAW": { "val": "平局", "note": "平局" },
+  "STATUS_SMASH_MODE": { "val": "打TA !!!", "note": "暴击进攻方状态栏" },
+  "STATUS_DEFEND_MODE": { "val": "嘤嘤嘤", "note": "暴击防守方状态栏" },
+  "STATUS_TOTAL_DMG": { "val": "总伤害: ", "note": "暴击结算总伤害前缀" },
+
+  "NAME_ME_DEFAULT": { "val": "我", "note": "我方默认名字" },
+  "NAME_OP_DEFAULT": { "val": "对手", "note": "敌方默认名字" },
+
+  "GO_TITLE_VICTORY": { "val": "胜利！", "note": "结算标题：胜利" },
+  "GO_TITLE_DEFEAT": { "val": "失败！", "note": "结算标题：失败" },
+  "GO_TITLE_DRAW": { "val": "平局", "note": "结算标题：平局" },
+  "GO_DESC_TIMEOUT_ME": { "val": "您超时了", "note": "结算描述：我方超时" },
+  "GO_DESC_TIMEOUT_OP": { "val": "对手掉线了", "note": "结算描述：对手掉线" },
+  "GO_DESC_KO": { "val": "K.O.", "note": "结算描述：击倒" }
+}
