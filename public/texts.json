@@ -12,7 +12,7 @@
   "BTN_SMASH": { "val": "打TA!", "note": "暴击按钮文字" },
   "MSG_DEFEND": { "val": "嘤嘤嘤", "note": "防御状态提示文字" },
   
-  "STATUS_WAITING": { "val": "连接中", "note": "等待中状态" },
+  "STATUS_WAITING": { "val": "等待对手中", "note": "等待中状态" },
   "STATUS_READY": { "val": "准备中", "note": "游戏准备中" },
   "STATUS_CHOOSE": { "val": "出手！", "note": "选择出招阶段" },
   "STATUS_DOUBLE_HIT": { "val": "两败俱伤喵", "note": "双方同时受伤" },
@@ -26,8 +26,8 @@
   "NAME_ME_DEFAULT": { "val": "我", "note": "我方默认名字" },
   "NAME_OP_DEFAULT": { "val": "对手", "note": "敌方默认名字" },
 
-  "GO_TITLE_VICTORY": { "val": "胜利！", "note": "结算标题：胜利" },
-  "GO_TITLE_DEFEAT": { "val": "失败！", "note": "结算标题：失败" },
+  "GO_TITLE_VICTORY": { "val": "胜利", "note": "结算标题：胜利" },
+  "GO_TITLE_DEFEAT": { "val": "失败", "note": "结算标题：失败" },
   "GO_TITLE_DRAW": { "val": "平局", "note": "结算标题：平局" },
   "GO_DESC_TIMEOUT_ME": { "val": "您超时了", "note": "结算描述：我方超时" },
   "GO_DESC_TIMEOUT_OP": { "val": "对手掉线了", "note": "结算描述：对手掉线" },

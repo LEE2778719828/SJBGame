@@ -12,7 +12,7 @@ let CONFIG;
 try {
     CONFIG = JSON.parse(fs.readFileSync('config.json'));
 } catch (e) {
-    // 默认配置兜底 (注意 ROUND_TIME_SEC 默认改为数组以防报错)
+    // 默认配置兜底
     CONFIG = { 
         MAX_HP: 10, ROUND_TIME_SEC: [5.0], SHOW_TIME_SEC: 2.0,
         CRIT_WARMUP_SEC: 1.0, CRIT_TIME_SEC: 4.0, CRIT_SETTLE_SEC: 3.0,
@@ -21,31 +21,38 @@ try {
     };
 }
 
-// --- 辅助函数：根据轮数获取时间 ---
 function getRoundDuration(roundIndex) {
     const rts = CONFIG.ROUND_TIME_SEC;
-    // 如果配置不是数组，直接返回数值（兼容旧配置）
     if (!Array.isArray(rts)) return rts;
-    
-    // 如果轮数超过数组长度，使用最后一个元素
-    // 例如数组长度3 (index 0,1,2)，roundIndex为5，则使用 index 2
     const idx = Math.min(roundIndex, rts.length - 1);
     return rts[idx];
 }
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-let waitingPlayer = null;
+// --- 修改：使用对象来管理不同模式的等待队列 ---
+const waitingQueues = {
+    'classic': null,
+    'skill': null
+};
+// ----------------------------------------
+
 const rooms = {};
 
 function tryMatch(socket) {
+    // 获取模式，默认为 classic
+    const mode = socket.gameMode || 'classic';
+    let waitingPlayer = waitingQueues[mode];
+
     if (waitingPlayer) {
         if (waitingPlayer.id === socket.id) return;
         
-        const roomId = `room_${Date.now()}_${Math.floor(Math.random()*1000)}`;
-        const opponent = waitingPlayer;
-        waitingPlayer = null;
+        // 匹配成功，清空该队列
+        waitingQueues[mode] = null;
 
+        const roomId = `room_${mode}_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+        const opponent = waitingPlayer;
+        
         socket.join(roomId);
         opponent.join(roomId);
 
@@ -54,6 +61,7 @@ function tryMatch(socket) {
 
         const room = {
             id: roomId,
+            mode: mode, // 记录房间模式
             players: [opponent.id, socket.id],
             names: { [opponent.id]: opponent.playerName, [socket.id]: socket.playerName },
             hp: { [opponent.id]: CONFIG.MAX_HP, [socket.id]: CONFIG.MAX_HP },
@@ -61,14 +69,12 @@ function tryMatch(socket) {
             afkCount: { [opponent.id]: 0, [socket.id]: 0 },
             streak: { [opponent.id]: 0, [socket.id]: 0 },
             
-            // 新增：记录当前是第几轮 (0-based index)
             roundCount: 0,
             
             critAttacker: null,
             critVictim: null,
             critTotalDmg: 0,
             state: 'playing', 
-            // 初始倒计时 = 动态时间 + 1秒加载缓冲
             nextPhaseTime: Date.now() + (firstRoundTime * 1000) + 1000 
         };
         rooms[roomId] = room;
@@ -79,18 +85,22 @@ function tryMatch(socket) {
             names: room.names, 
             hp: room.hp,
             nextPhaseTime: room.nextPhaseTime,
-            config: CONFIG
+            config: CONFIG,
+            mode: mode
         });
 
         startGameLoop(roomId);
     } else {
-        waitingPlayer = socket;
-        socket.emit('status', 'Waiting for opponent...');
+        // 没有对手，进入该模式的等待队列
+        waitingQueues[mode] = socket;
+        socket.emit('status', `Waiting for ${mode} opponent...`);
     }
 }
 
 io.on('connection', (socket) => {
     const rawName = socket.handshake.query.name;
+    // 获取连接时指定的模式
+    socket.gameMode = socket.handshake.query.mode || 'classic';
     socket.playerName = (rawName && rawName.length > 0) ? rawName : `Player${socket.id.substr(0,4)}`;
 
     socket.on('syncTime', (clientTime, callback) => {
@@ -134,7 +144,11 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        if (waitingPlayer === socket) waitingPlayer = null;
+        // --- 修改：从对应的模式队列中移除 ---
+        if (waitingQueues[socket.gameMode] === socket) {
+            waitingQueues[socket.gameMode] = null;
+        }
+
         for (const rid in rooms) {
             if (rooms[rid].players.includes(socket.id)) {
                  handleGameOver(rid, rooms[rid].players.find(id=>id!==socket.id), 'afk', socket.id);
@@ -185,8 +199,6 @@ function startGameLoop(roomId) {
 
 function startNewRound(room) {
     room.state = 'playing';
-    
-    // --- 逻辑修改：回合数 +1，并获取对应的时间 ---
     room.roundCount++; 
     const nextDuration = getRoundDuration(room.roundCount);
     
@@ -261,6 +273,7 @@ function resolveRound(roomId) {
         room.state = 'crit_warmup';
         room.critAttacker = roundWinner;
         room.critVictim = (roundWinner === p1) ? p2 : p1;
+        room.streak[roundWinner] = 0;//重置胜者的获胜次数为0
         room.nextPhaseTime = Date.now() + (CONFIG.CRIT_WARMUP_SEC * 1000); 
     } else {
         room.state = 'showing_result';

@@ -14,8 +14,37 @@
         .hidden { display: none !important; opacity: 0; pointer-events: none; }
         
         #login-input { padding: 15px; font-size: 1.2rem; border-radius: 12px; border: none; text-align: center; width: 80%; max-width: 300px; margin-bottom: 20px; }
-        .action-btn { padding: 15px 40px; font-size: 1.5rem; border: none; border-radius: 50px; cursor: pointer; color: #fff; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: transform 0.1s; background: var(--accent-green); }
+        .action-btn { padding: 15px; font-size: 1.2rem; border: none; border-radius: 50px; cursor: pointer; color: #fff; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: transform 0.1s; }
         .action-btn:active { transform: scale(0.95); }
+
+        /* 新增：模式选择按钮容器与样式 */
+        .mode-select-container { display: flex; gap: 15px; width: 85%; max-width: 350px; justify-content: center; margin-top: 10px; }
+        
+        .btn-classic { 
+            flex: 3; /* 30% 宽度 */
+            background: #3742fa; 
+            font-size: 1rem;
+            border-radius: 12px;
+        }
+
+        .btn-skill { 
+            flex: 7; /* 70% 宽度 */
+            background: linear-gradient(135deg, #2ed573, #1e90ff);
+            font-size: 1.4rem;
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        /* 技能按钮流光特效 */
+        .btn-skill::after {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: linear-gradient(to bottom right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%);
+            transform: rotate(45deg); animation: shine 3s infinite; pointer-events: none;
+        }
+        @keyframes shine { 0% { transform: translateX(-100%) rotate(45deg); } 100% { transform: translateX(100%) rotate(45deg); } }
+
 
         #battle-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         .battle-icon { font-size: 8rem; position: absolute; opacity: 0; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-shadow: 0 0 20px rgba(0,0,0,0.5); }
@@ -120,7 +149,11 @@
             <span style="font-size:1.2rem; color:#2ed573" data-tid="UI_SUBTITLE"></span>
         </h1>
         <input type="text" id="login-input" placeholder="..." maxlength="8">
-        <button class="action-btn" onclick="tryLogin()" data-tid="BTN_START"></button>
+        
+        <div class="mode-select-container">
+            <button class="action-btn btn-classic" onclick="tryLogin('classic')" data-tid="BTN_MODE_CLASSIC"></button>
+            <button class="action-btn btn-skill" onclick="tryLogin('skill')" data-tid="BTN_MODE_SKILL"></button>
+        </div>
     </div>
 
     <div id="result-layer" class="full-layer hidden">
@@ -183,7 +216,6 @@
         // --- 1. 文本管理模块 ---
         let TEXTS = {}; // 存储下载的文本
         
-        // 初始化：页面加载时下载文本
         window.onload = function() {
             loadTexts();
         };
@@ -196,27 +228,21 @@
                 applyStaticTexts();
             } catch (e) {
                 console.error("Failed to load texts:", e);
-                // 兜底：如果下载失败，至少保证不白屏，这里可以写死一些默认值，或者直接不做处理显示空
             }
         }
 
-        // 辅助函数：获取文本值
         function getText(id) {
             if (TEXTS[id] && TEXTS[id].val) {
                 return TEXTS[id].val;
             }
-            return id; // 找不到则返回 ID 本身，方便调试
+            return id; 
         }
 
-        // 填充静态 UI 元素
         function applyStaticTexts() {
-            // 1. 处理 data-tid 属性的元素
             document.querySelectorAll('[data-tid]').forEach(el => {
                 const tid = el.getAttribute('data-tid');
                 el.textContent = getText(tid);
             });
-
-            // 2. 特殊处理 Input 的 placeholder
             const input = document.getElementById('login-input');
             if(input) input.placeholder = getText('UI_INPUT_PLACEHOLDER');
         }
@@ -248,13 +274,20 @@
             return t;
         }
 
-        function tryLogin() {
-            // 如果没输入名字，使用配置文件里的默认 "Me"
+        // --- 修改：增加 mode 参数逻辑 ---
+        function tryLogin(mode) {
+            if (mode === 'skill') {
+                // 技能版拦截：显示未开发
+                alert(getText('MSG_DEV_IP'));
+                return;
+            }
+
             const inputVal = document.getElementById('login-input').value;
             const name = inputVal || getText('NAME_ME_DEFAULT');
             
             els.loginLayer.classList.add('hidden');
-            socket.io.opts.query = { name };
+            // 将选择的 mode 传给服务端
+            socket.io.opts.query = { name: name, mode: mode };
             socket.connect();
         }
 
@@ -272,7 +305,6 @@
             const ids = data.players;
             opId = ids.find(id => id !== myId);
             
-            // 动态设置名字
             document.getElementById('my-name').textContent = data.names[myId] || getText('NAME_ME_DEFAULT');
             document.getElementById('op-name').textContent = data.names[opId] || getText('NAME_OP_DEFAULT');
             
@@ -286,7 +318,7 @@
             currentHpMap = data.hp;
             nextPhaseTimestamp = data.nextPhaseTime;
             isTimerRunning = true;
-            els.statusBar.textContent = getText('STATUS_READY'); // 使用配置文本
+            els.statusBar.textContent = getText('STATUS_READY'); 
             requestAnimationFrame(gameLoop);
         });
 
@@ -320,7 +352,7 @@
             clearAllTimers();
             resetUIFull(); 
             nextPhaseTimestamp = data.nextPhaseTime;
-            els.statusBar.textContent = getText('STATUS_CHOOSE'); // 使用配置文本
+            els.statusBar.textContent = getText('STATUS_CHOOSE'); 
         });
 
         socket.on('roundResult', (data) => {
@@ -339,7 +371,6 @@
                 updateHpUI(data.hp[myId], data.hp[opId]);
                 showEmotes(data.damages[myId], data.damages[opId]);
                 let msg = "";
-                // 动态获取伤害状态文本
                 if (data.damages[myId] > 0 && data.damages[opId] > 0) msg = getText('STATUS_DOUBLE_HIT');
                 else if (data.damages[myId] > 0) msg = getText('STATUS_OUCH');
                 else if (data.damages[opId] > 0) msg = getText('STATUS_NICE_HIT');
@@ -378,7 +409,6 @@
             updateStreakVisuals(0, 0); 
             
             nextPhaseTimestamp = data.nextPhaseTime;
-            // 动态拼接总伤害文本
             els.statusBar.textContent = getText('STATUS_TOTAL_DMG') + data.totalDmg.toFixed(1);
         });
 
@@ -418,7 +448,7 @@
                 else btn.classList.add('dimmed');
                 btn.disabled = true;
             });
-            els.statusBar.textContent = getText('STATUS_WAITING'); // 使用配置文本
+            els.statusBar.textContent = getText('STATUS_WAITING'); 
             socket.emit('makeMove', { roomId, move });
         }
 
@@ -452,11 +482,11 @@
             if (isAttacker) {
                 els.arena.classList.add('focus-op');
                 els.btnSmash.style.display = 'flex'; els.defendMsg.style.display = 'none';
-                els.statusBar.textContent = getText('STATUS_SMASH_MODE'); // 使用配置文本
+                els.statusBar.textContent = getText('STATUS_SMASH_MODE'); 
             } else {
                 els.arena.classList.add('focus-me'); 
                 els.btnSmash.style.display = 'none'; els.defendMsg.style.display = 'block';
-                els.statusBar.textContent = getText('STATUS_DEFEND_MODE'); // 使用配置文本
+                els.statusBar.textContent = getText('STATUS_DEFEND_MODE'); 
             }
         }
 
