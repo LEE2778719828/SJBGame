@@ -260,11 +260,16 @@ function resolveRound(roomId) {
     const p2Afk = room.afkCount[p2] >= CONFIG.MAX_AFK_ROUNDS;
 
     if (hpZero || p1Afk || p2Afk) {
+        // [关键修复] 立即改变状态，防止 gameLoop 重复进入此逻辑
+        room.state = 'game_over_pending'; 
+        
         let winner = null, reason = '', afkUserId = null;
         if (p1Afk && p2Afk) { reason = 'both_afk'; }
         else if (p1Afk) { winner = p2; reason = 'afk'; afkUserId = p1; }
         else if (p2Afk) { winner = p1; reason = 'afk'; afkUserId = p2; }
         else if (hpZero) { reason = 'ko'; winner = room.hp[p1] > room.hp[p2] ? p1 : p2; }
+        
+        // 延时执行真正的销毁逻辑
         setTimeout(() => handleGameOver(roomId, winner, reason, afkUserId), 1000);
         return; 
     }
