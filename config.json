@@ -1,0 +1,13 @@
+{
+  "MAX_HP": 10,
+  "ROUND_TIME_SEC": 4.0,
+  "SHOW_TIME_SEC": 2.0,
+  "CRIT_WARMUP_SEC": 1.0,
+  "CRIT_TIME_SEC": 4.0,
+  "CRIT_SETTLE_SEC": 2.0,
+  "DMG_AFK": 1.5,
+  "DMG_HIT": 1.0,
+  "MAX_AFK_ROUNDS": 2,
+  "CRIT_TRIGGER_N": 2,
+  "CRIT_DMG_PER_TAP": 0.1
+}
